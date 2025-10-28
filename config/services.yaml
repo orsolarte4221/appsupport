@@ -17,4 +17,8 @@ services:
         resource: '../src/'
 
     # add more service definitions when explicit configuration is needed
+    # Hexagonal adapters wiring
+    App\Domain\Port\Clock: '@App\Infrastructure\Time\SystemClock'
+    App\Domain\Port\WorkerRepository: '@App\Infrastructure\Persistence\Doctrine\Repository\DoctrineWorkerRepository'
+    App\Domain\Port\SupportRepository: '@App\Infrastructure\Persistence\Doctrine\Repository\DoctrineSupportRepository'
     # please note that last definitions always *replace* previous ones

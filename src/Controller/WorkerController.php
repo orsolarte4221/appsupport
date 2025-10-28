@@ -4,7 +4,8 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Repository\WorkerRepository;
+use App\Application\UseCase\DailyLoadReport\DailyLoadReportHandler;
+use App\Application\UseCase\DailyLoadReport\DailyLoadReportQuery;
 use DateTimeImmutable;
 use DateTimeZone;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -16,7 +17,7 @@ use Symfony\Component\Routing\Annotation\Route;
 class WorkerController extends AbstractController
 {
     public function __construct(
-        private readonly WorkerRepository $workerRepository,
+        private readonly DailyLoadReportHandler $reportHandler,
     ) {
     }
 
@@ -35,13 +36,13 @@ class WorkerController extends AbstractController
             $dt = new DateTimeImmutable('now', $tz);
         }
 
-        $workers = $this->workerRepository->findAllAlphabetical();
+        $rows = $this->reportHandler->handle(new DailyLoadReportQuery($dt));
 
         $out = [];
-        foreach ($workers as $w) {
+        foreach ($rows as $row) {
             $out[] = [
-                'worker' => $w->getName(),
-                'total' => $w->dailyLoad($dt),
+                'worker' => $row->worker,
+                'total' => $row->total,
             ];
         }
 

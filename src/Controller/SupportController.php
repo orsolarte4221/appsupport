@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Controller;
 
-use App\Entity\Support;
-use App\Repository\SupportRepository;
-use App\Service\SupportAssigner;
-use DateTimeZone;
+use App\Application\UseCase\CreateSupport\CreateSupportCommand;
+use App\Application\UseCase\CreateSupport\CreateSupportHandler;
+use App\Application\UseCase\ListSupports\ListSupportsHandler;
+use App\Application\UseCase\ListSupports\ListSupportsQuery;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -17,8 +17,8 @@ use Symfony\Component\Routing\Annotation\Route;
 class SupportController extends AbstractController
 {
     public function __construct(
-        private readonly SupportAssigner $assigner,
-        private readonly SupportRepository $supportRepository,
+        private readonly CreateSupportHandler $createHandler,
+        private readonly ListSupportsHandler $listHandler,
     ) {
     }
 
@@ -39,38 +39,32 @@ class SupportController extends AbstractController
             return $this->json(['error' => 'complexity must be one of 10, 20, 30'], 400);
         }
 
-        $support = new Support();
-        $support->setDescription($description);
-        $support->setComplexity($complexity);
-
-        $this->assigner->assignAndPersist($support);
-
-        $tz = new DateTimeZone('America/Bogota');
-        $assignedAt = $support->getAssignedAt()?->setTimezone($tz)->format('Y-m-d\TH:i:s');
+        $result = $this->createHandler->handle(
+            new CreateSupportCommand($description, $complexity)
+        );
 
         return $this->json([
-            'id' => $support->getId(),
-            'description' => $support->getDescription(),
-            'complexity' => $support->getComplexity(),
-            'assignedAt' => $assignedAt,
-            'worker' => $support->getWorker()?->getName(),
+            'id' => $result->id,
+            'description' => $result->description,
+            'complexity' => $result->complexity,
+            'assignedAt' => $result->assignedAtIso,
+            'worker' => $result->workerName,
         ], 201);
     }
 
     #[Route('', name: 'api_supports_list', methods: ['GET'])]
     public function list(): JsonResponse
     {
-        $supports = $this->supportRepository->findAllOrdered();
+        $items = $this->listHandler->handle(new ListSupportsQuery());
 
-        $tz = new DateTimeZone('America/Bogota');
         $out = [];
-        foreach ($supports as $s) {
+        foreach ($items as $i) {
             $out[] = [
-                'id' => $s->getId(),
-                'description' => $s->getDescription(),
-                'complexity' => $s->getComplexity(),
-                'assignedAt' => $s->getAssignedAt()?->setTimezone($tz)->format('Y-m-d\TH:i:s'),
-                'worker' => $s->getWorker()?->getName(),
+                'id' => $i->id,
+                'description' => $i->description,
+                'complexity' => $i->complexity,
+                'assignedAt' => $i->assignedAtIso,
+                'worker' => $i->workerName,
             ];
         }
 
